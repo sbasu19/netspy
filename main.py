@@ -1,81 +1,90 @@
-import psutil
-import time
-import pandas as pd
-from sklearn.ensemble import IsolationForest
+import tkinter as tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
 from collections import deque
+from monitor import SmartBandwidthMonitor
+
+# --- Theme Colors ---
+BG_COLOR = "#282828"  # Dark background
+FG_COLOR = "#ebdbb2"  # Light text
+LINE_NORMAL = "#b8bb26"  # Green line
+LINE_ANOMALY = "#cc241d"  # Red line
 
 
-class SmartBandwidthMonitor:
-    def __init__(self, window_size=60):
-        self.window_size = window_size
-        # Store recent bandwidth data (bytes per second)
-        self.history = deque(maxlen=window_size)
+class App:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("netspy - AI Bandwidth Monitor")
+        self.root.geometry("600x400")
+        self.root.configure(bg=BG_COLOR)
 
-        # Isolation Forest for anomaly detection
-        # contamination=0.05 means we expect ~5% of traffic spikes to be anomalous
-        self.model = IsolationForest(contamination=0.05, random_state=42)
-        self.is_model_trained = False
+        # Initialize the AI Brain
+        self.monitor = SmartBandwidthMonitor(window_size=30, retrain_interval=15)
 
-        self.last_io = psutil.net_io_counters()
-        self.last_time = time.time()
+        # Graph Data Storage (stores the last 60 seconds for the visual graph)
+        self.graph_data = deque([0] * 60, maxlen=60)
 
-    def get_current_speed(self):
-        """Calculates bytes sent/received per second."""
-        current_io = psutil.net_io_counters()
-        current_time = time.time()
+        # --- Setup Matplotlib Figure ---
+        self.fig, self.ax = plt.subplots(figsize=(6, 4), facecolor=BG_COLOR)
+        self.ax.set_facecolor(BG_COLOR)
+        self.ax.tick_params(colors=FG_COLOR)
+        for spine in self.ax.spines.values():
+            spine.set_color(FG_COLOR)
 
-        time_elapsed = current_time - self.last_time
+        self.ax.set_title("Live Network Traffic (KB/s)", color=FG_COLOR)
 
-        bytes_sent = (current_io.bytes_sent - self.last_io.bytes_sent) / time_elapsed
-        bytes_recv = (current_io.bytes_recv - self.last_io.bytes_recv) / time_elapsed
+        # Create the initial empty line
+        (self.line,) = self.ax.plot(self.graph_data, color=LINE_NORMAL, linewidth=2)
 
-        self.last_io = current_io
-        self.last_time = current_time
+        # Embed the graph into Tkinter
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        return bytes_sent, bytes_recv
+        # Status Label for Anomalies
+        self.status_label = tk.Label(
+            self.root,
+            text="Gathering Baseline...",
+            bg=BG_COLOR,
+            fg=FG_COLOR,
+            font=("Arial", 14, "bold"),
+        )
+        self.status_label.pack(pady=5)
 
-    def monitor(self):
-        print("Starting Smart Bandwidth Monitor... (Gathering baseline data)")
+        # Start the update loop
+        self.update_gui()
 
-        try:
-            while True:
-                sent, recv = self.get_current_speed()
-                total_speed = sent + recv
+    def update_gui(self):
+        # 1. Ask the monitor for the latest speed and AI status
+        current_speed, is_anomaly = self.monitor.step()
+        speed_kb = current_speed / 1024
 
-                # Add current speed to history
-                self.history.append([total_speed])
+        # 2. Update the visual graph data
+        self.graph_data.append(speed_kb)
+        self.line.set_ydata(self.graph_data)
 
-                # We need enough data to train the model initially
-                if len(self.history) == self.window_size:
-                    df = pd.DataFrame(self.history, columns=["total_speed"])
+        # Adjust the graph's Y-axis dynamically based on current speeds
+        self.ax.set_ylim(0, max(self.graph_data) * 1.2 + 10)
 
-                    # Periodically retrain the model on the recent window
-                    self.model.fit(df)
-                    self.is_model_trained = True
+        # 3. Update Colors and Text based on AI prediction
+        if is_anomaly:
+            self.line.set_color(LINE_ANOMALY)
+            self.status_label.config(
+                text=f"⚠️ ANOMALY: {speed_kb:.2f} KB/s", fg=LINE_ANOMALY
+            )
+        else:
+            self.line.set_color(LINE_NORMAL)
+            if self.monitor.is_model_trained:
+                self.status_label.config(
+                    text=f"Normal: {speed_kb:.2f} KB/s", fg=LINE_NORMAL
+                )
 
-                # Check for anomalies if the model is ready
-                if self.is_model_trained:
-                    # Predict: 1 is normal, -1 is an anomaly
-                    prediction = self.model.predict([[total_speed]])
+        self.canvas.draw()
 
-                    if prediction[0] == -1:
-                        print(
-                            f"⚠️ ANOMALY DETECTED! Unusual Traffic Spike: {total_speed / 1024:.2f} KB/s"
-                        )
-                    else:
-                        print(f"Traffic Normal: {total_speed / 1024:.2f} KB/s")
-                else:
-                    print(
-                        f"Gathering baseline... {len(self.history)}/{self.window_size}"
-                    )
-
-                time.sleep(1)  # Poll every 1 second
-
-        except KeyboardInterrupt:
-            print("\nMonitoring stopped.")
-# by shubhechchha
+        # 4. Tell Tkinter to run this function again in 1000ms (1 second)
+        self.root.after(1000, self.update_gui)
 
 
 if __name__ == "__main__":
-    monitor = SmartBandwidthMonitor(window_size=30)  # 30 seconds baseline for testing
-    monitor.monitor()
+    root = tk.Tk()
+    app = App(root)
+    root.mainloop()
