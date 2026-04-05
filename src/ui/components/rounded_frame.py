@@ -18,12 +18,11 @@ class RoundedFrame(tk.Canvas):
         w, h = event.width, event.height
         r = self.radius
         
-        # Redraw the rounded rectangle
-        self._draw_rounded_rect(0, 0, w, h, r, fill=self.fill_color, outline=self.border_color, tags="bg")
-        self.tag_lower("bg") # Send background to back
+        # Draw slightly inside to avoid clipping (1px inset)
+        self._draw_rounded_rect(1, 1, w-1, h-1, r, fill=self.fill_color, outline=self.border_color, tags="bg")
+        self.tag_lower("bg")
         
-        # Position the internal container with some padding
-        padding = 4
+        padding = 6
         self.coords(self.container_window, padding, padding)
         self.container.config(width=w - (padding*2), height=h - (padding*2))
         self.container.pack_propagate(False)
