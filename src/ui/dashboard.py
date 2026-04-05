@@ -4,6 +4,7 @@ from src.ui.views.home_view import HomeView
 from src.ui.views.monitor_view import MonitorView
 from src.ui.views.cpu_view import CPUView
 from src.ui.views.ram_view import RAMView
+from src.ui.views.analyzer_view import AnalyzerView
 from src.ui.styles import BG_DARK
 
 
@@ -18,6 +19,7 @@ class Dashboard(tk.Tk):
         self.nav_items = [
             {"name": "home", "label": "Overview", "icon": "🏠"},
             {"name": "network", "label": "Net Monitor", "icon": "🌐"},
+            {"name": "analyzer", "label": "Net Analyzer", "icon": "🔍"},
             {"name": "cpu", "label": "CPU Monitor", "icon": "⚡"},
             {"name": "ram", "label": "RAM Monitor", "icon": "💾"},
         ]
@@ -41,6 +43,8 @@ class Dashboard(tk.Tk):
             self.current_view = HomeView(self.content_area)
         elif name == "network":
             self.current_view = MonitorView(self.content_area)
+        elif name == "analyzer":
+            self.current_view = AnalyzerView(self.content_area)
         elif name == "cpu":
             self.current_view = CPUView(self.content_area)
         elif name == "ram":
