@@ -34,6 +34,16 @@ class Dashboard(tk.Tk):
         self.current_view = None
         self.navigate("home")
 
+        # Intercept close event to save models
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def on_close(self):
+        """Saves active models and exits."""
+        print("[System] Shutting down... Saving AI intelligence.")
+        if self.current_view and hasattr(self.current_view, 'monitor'):
+            self.current_view.monitor.save_cached_model()
+        self.destroy()
+
     def navigate(self, name):
         """Switch between different views."""
         if self.current_view:
