@@ -6,6 +6,9 @@
 
 `netspy` is a futuristic, high-performance system monitoring dashboard that leverages **Machine Learning (Isolation Forests)** to detect and alert you to anomalous spikes in Network, CPU, and RAM usage in real-time. Built with a sleek "Cyberpunk Dark" aesthetic, it transforms raw system metrics into actionable intelligence.
 
+**Lead Architect:** Shubhechchha Basu  
+**Contributor:** Bratik Mukherjee ( Bimbok )
+
 ---
 
 ## 📸 Dashboard Gallery
